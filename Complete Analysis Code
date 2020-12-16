@@ -1,0 +1,723 @@
+/*
+
+Code Outline: 
+
+Part 1: Data Cleaning
+Part 2: Analysis #1 (effect of 2016 healthcare expenditures on 2017 food insecurity status)
+Part 3: Analysis #2 (effect of 2016 food insecurity status on 2017 healthcare expenditures) 
+Part 4: Conducting Modified Park Test
+Part 5: Comparing Different Winsorizing Strategies
+Part 6: Comparing Different Weighting Strategies 
+
+*/
+
+/********************
+PART 1: Data Cleaning
+********************/
+
+*1.1 Creating unique IDs for the Food Security File to merge with with Consolidated data set 
+
+use "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Food Security File.dta"
+
+gen RUID = substr(homeidx,1,6)
+
+save "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Food Security File.dta"
+
+use "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Food Security File.dta"
+
+gen RUID = substr(homeidx,1,6)
+
+use "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Full Year Consolidated DataFile.dta"
+
+tostring duid, replace
+duid was long now str5
+
+gen RUID = duid + ruletr42
+
+save "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Full Year Consolidated Data File.dta"
+
+use "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Full Year Consolidated DataFile.dta"
+
+tostring duid, replace
+duid was long now str5
+
+gen RUID = duid + ruletr42
+
+save "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Full Year Consolidated Data File.dta"
+
+*1.2 Purging consolidated data file for only those vars we need
+
+use "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Full Year Consolidated Data File.dta"
+
+keep duid pid dupersid panel varstr varpsu RUID racev1x racev2x racethx raceax racebx racewx hispanx hispncat dobmm dobyy sex insurc17 cpsfamid faminc17 povlev17 povcat17 ftstu31x ftstu42x ftstu53x ftstu17x educyr hideg hibpdx bpmldx hibpaged chdaged angiaged miaged ohrtaged diabdx  diabaged strkdx strkaged arthdx arthaged emphdx emphaged chbron31 region17 perwt17f empst31 empst42 empst53 fams1231 fcsz1231 famszeyr obtotv17 obvexp17 optotv17 optexp17 opdrv17 ertot17 ertexp17 ipdis17 ipngtd17 iptexp17 rxtot17 rxexp17 dvtot17 dvtexp17 hhtotd17 hhaexp17 hhnexp17 visexp17 othexp17 totexp17 totmcd17 totmcr17 totofd17 totopr17 totopu17 totosr17 tototh17 totprv17 totptr17 totslf17 totstl17 tottch17 tottri17 totva17 totwcp17 intvlang povcat17
+
+tostring panel, replace
+
+save "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Full Year Consolidated Data File_Var Condensed.dta"
+
+use "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Full Year Consolidated DataFile.dta"
+
+keep duid pid dupersid panel varstr varpsu RUID racev1x racev2x racethx raceax racebx racewx hispanx hispncat dobmm dobyy agelast sex insurc16 cpsfamid faminc16 povlev16 povcat16 ftstu31x ftstu42x ftstu53x ftstu16x educyr hideg hibpdx bpmldx hibpaged chdaged angiaged miaged ohrtaged diabdx  diabaged strkdx strkaged arthdx arthaged emphdx emphaged chbron31 region16 perwt16f empst31 empst42 empst53 fams1231 fcsz1231 famszeyr obtotv16 obvexp16 optotv16 optexp16 opdrv16 ertot16 ertexp16 ipdis16 ipngtd16 iptexp16 rxtot16 rxexp16 dvtot16 dvtexp16 hhtotd16 hhaexp16 hhnexp16 visexp16 othexp16 totexp16
+
+tostring panel, replace
+
+save "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Full Year Consolidated Data File_Var Condensed.dta"
+
+*1.3 Merging Consolidated Data Files with Food Security Info 
+
+use "\\Client\C$\MEPS\MEPS Files\2017 Files\2016 Full Year Consolidated Data File_Var Condensed.dta"
+
+merge m:1 RUID using "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Food Security File.dta"
+
+rename _merge _merge_1
+label variable _merge_1 "Merge from Food Security --> Consolidated"
+	
+save "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Consolidated and Food Security.dta"
+
+rename (racev1x racev2x racethx raceax racebx racewx hispanx hispncat dobmm dobyy agelast sex insurc16 povcat16 cpsfamid faminc16 povlev16 ftstu31x ftstu42x ftstu53x educyr hideg hibpdx bpmldx hibpaged chdaged angiaged miaged ohrtaged diabdx  diabaged strkdx strkaged arthdx arthaged emphdx emphaged chbron31 fsout42 fslast42 fsafrd42 fsskip42 fsskdy42 fsless42 fshgry42 fswtls42 fsneat42 fsnedy42 fswt42 panel empst31 empst42 empst53 fams1231 fcsz1231 famszeyr) (=_Y1)
+
+save "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Consolidated and Food Security_Y1.dta"
+
+***
+
+use "\\Client\C$\MEPS\MEPS Files\2016 Files\2017 Full Year Consolidated Data File_Var Condensed.dta"
+
+merge m:1 RUID using "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Food Security File.dta"
+
+rename _merge _merge_1
+label variable _merge_1 "Merge from Food Security --> Consolidated"
+
+
+save "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Consolidated and Food Security.dta"
+
+rename (racev1x racev2x racethx raceax racebx racewx hispanx hispncat dobmm dobyy sex ftstu31x ftstu42x ftstu53x ftstu17x educyr hideg hibpdx bpmldx hibpaged chdaged angiaged miaged ohrtaged diabdx  diabaged strkdx strkaged arthdx arthaged emphdx emphaged chbron31 fsout42 fslast42 fsafrd42 fsskip42 fsskdy42 fsless42 fshgry42 fswtls42 fsneat42 fsnedy42 fswt42 panel varstr varpsu RUID empst31 empst42 empst53 fams1231 fcsz1231 famszeyr) (=_Y2) 
+
+save "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Consolidated and Food Security_Y2.dta"
+
+*1.4 Merging 2016 and 2017 Files 
+
+use "\\Client\C$\MEPS\MEPS Files\2017 Files\2017 Consolidated and Food Security_Y2.dta"
+
+merge 1:1 dupersid using "\\Client\C$\MEPS\MEPS Files\2016 Files\2016 Consolidated and Food Security_Y1.dta"
+
+   Result                           # of obs.
+    -----------------------------------------
+    not matched                        35,109
+        from master                    16,167  (_merge==1)
+        from using                     18,942  (_merge==2)
+
+    matched                            15,713  (_merge==3)
+    -----------------------------------------
+
+drop if _merge==1 | _merge==2
+
+drop panel_Y1 panel_Y2
+drop varstr_Y2 varpsu_Y2
+
+*1.5 Making it such that if they answer positively to three or more FI questions, they then are determined to be food insecure 
+
+replace fsout42_Y2=1 if fsout42_Y2==1 | fsout42_Y2==2
+replace fslast42_Y2=1 if fslast42_Y2==1 | fslast42_Y2==2
+replace fsafrd42_Y2=1 if fsafrd42_Y2==1 | fsafrd42_Y2==2
+replace fsskip42_Y2=1 if fsskip42_Y2==1
+replace fsskdy42_Y2=1 if fsskdy42_Y2>2
+replace fsless42_Y2=1 if fsless42_Y2==1
+replace fshgry42_Y2=1 if fshgry42_Y2==1
+replace fswtls42_Y2=1 if fswtls42_Y2==1
+replace fsneat42_Y2=1 if fsneat42_Y2==1
+replace fsnedy42_Y2=1 if fsnedy42_Y2>2
+
+replace fsout42_Y2=. if fsout42_Y2<-2 
+replace fslast42_Y2=. if fslast42_Y2<-2
+replace fsafrd42_Y2=. if fsafrd42_Y2<-2
+replace fsskip42_Y2=. if fsskip42_Y2<-2
+replace fsskdy42_Y2=. if fsskdy42_Y2<-2
+replace fsless42_Y2=. if fsless42_Y2<-2
+replace fshgry42_Y2=. if fshgry42_Y2<-2
+replace fswtls42_Y2=. if fswtls42_Y2<-2
+replace fsneat42_Y2=. if fsneat42_Y2<-2
+replace fsnedy42_Y2=. if fsnedy42_Y2<-2
+
+replace fsout42_Y2=0 if fsout42_Y2!=1 & fsout42_Y2!=.
+replace fslast42_Y2=0 if fslast42_Y2!=1 & fslast42_Y2!=.
+replace fsafrd42_Y2=0 if fsafrd42_Y2!=1 & fsafrd42_Y2!=.
+replace fsskip42_Y2=0 if fsskip42_Y2!=1 & fsskip42_Y2!=.
+replace fsskdy42_Y2=0 if fsskdy42_Y2!=1 & fsskdy42_Y2!=.
+replace fsless42_Y2=0 if fsless42_Y2!=1 & fsless42_Y2!=.
+replace fshgry42_Y2=0 if fshgry42_Y2!=1 & fshgry42_Y2!=.
+replace fswtls42_Y2=0 if fswtls42_Y2!=1 & fswtls42_Y2!=.
+replace fsneat42_Y2=0 if fsneat42_Y2!=1 & fsneat42_Y2!=.
+replace fsnedy42_Y2=0 if fsnedy42_Y2!=1 & fsnedy42_Y2!=.
+
+
+gen FS_rawscore_Y2=(fsout42_Y2 + fslast42_Y2 + fsafrd42_Y2 + fsskip42_Y2 + fsskdy42_Y2 + fsless42_Y2 + fshgry42_Y2 + fswtls42_Y2 + fsneat42_Y2 + fsnedy42_Y2) 
+
+gen FS_Y2=0
+
+replace FS_Y2=1 if FS_rawscore_Y2>2 & FS_rawscore_Y2!=.
+
+* Now for 2016 
+
+replace fsout42_Y1=1 if fsout42_Y1==1 | fsout42_Y1==2
+replace fslast42_Y1=1 if fslast42_Y1==1 | fslast42_Y1==2
+replace fsafrd42_Y1=1 if fsafrd42_Y1==1 | fsafrd42_Y1==2
+replace fsskip42_Y1=1 if fsskip42_Y1==1
+replace fsskdy42_Y1=1 if fsskdy42_Y1>2
+replace fsless42_Y1=1 if fsless42_Y1==1
+replace fshgry42_Y1=1 if fshgry42_Y1==1
+replace fswtls42_Y1=1 if fswtls42_Y1==1
+replace fsneat42_Y1=1 if fsneat42_Y1==1
+replace fsnedy42_Y1=1 if fsnedy42_Y1>2
+
+replace fsout42_Y1=. if fsout42_Y1<-2 
+replace fslast42_Y1=. if fslast42_Y1<-2
+replace fsafrd42_Y1=. if fsafrd42_Y1<-2
+replace fsskip42_Y1=. if fsskip42_Y1<-2
+replace fsskdy42_Y1=. if fsskdy42_Y1<-2
+replace fsless42_Y1=. if fsless42_Y1<-2
+replace fshgry42_Y1=. if fshgry42_Y1<-2
+replace fswtls42_Y1=. if fswtls42_Y1<-2
+replace fsneat42_Y1=. if fsneat42_Y1<-2
+replace fsnedy42_Y1=. if fsnedy42_Y1<-2
+
+replace fsout42_Y1=0 if fsout42_Y1!=1 & fsout42_Y1!=.
+replace fslast42_Y1=0 if fslast42_Y1!=1 & fslast42_Y1!=.
+replace fsafrd42_Y1=0 if fsafrd42_Y1!=1 & fsafrd42_Y1!=.
+replace fsskip42_Y1=0 if fsskip42_Y1!=1 & fsskip42_Y1!=.
+replace fsskdy42_Y1=0 if fsskdy42_Y1!=1 & fsskdy42_Y1!=.
+replace fsless42_Y1=0 if fsless42_Y1!=1 & fsless42_Y1!=.
+replace fshgry42_Y1=0 if fshgry42_Y1!=1 & fshgry42_Y1!=.
+replace fswtls42_Y1=0 if fswtls42_Y1!=1 & fswtls42_Y1!=.
+replace fsneat42_Y1=0 if fsneat42_Y1!=1 & fsneat42_Y1!=.
+replace fsnedy42_Y1=0 if fsnedy42_Y1!=1 & fsnedy42_Y1!=.
+
+
+gen FS_rawscore_Y1=(fsout42_Y1 + fslast42_Y1 + fsafrd42_Y1 + fsskip42_Y1 + fsskdy42_Y1 + fsless42_Y1 + fshgry42_Y1 + fswtls42_Y1 + fsneat42_Y1 + fsnedy42_Y1) 
+
+gen FS_Y1=0
+
+replace FS_Y1=1 if FS_rawscore_Y1>2 & FS_rawscore_Y1!=.
+
+save "\\Client\C$\MEPS\MEPS Files\2016-2017 Consolidated and Food Security.dta"
+
+drop sex_Y1gen Panelg
+rename sex_Y2 Sex
+
+drop dobmm_Y2 dobyy_Y2 famszeyr_Y2 fams1231_Y2 fcsz1231_Y2 
+drop racev1x_Y2 racev2x_Y2 raceax_Y2 racebx_Y2 racewx_Y2 hispanx_Y2 hispncat_Y2
+
+rename racethx_Y2 Race_Y2
+
+drop ftstu31x_Y2 ftstu42x_Y2 ftstu53x_Y2 ftstu17x_Y2
+drop hibpaged_Y2 bpmldx_Y2 chdaged_Y2 angiaged_Y2 miaged_Y2 ohrtaged_Y2 strkaged_Y2 emphaged_Y2 diabaged_Y2 arthaged_Y2 povcat17
+
+
+drop dobmm_Y1 dobyy_Y1 famszeyr_Y1 fams1231_Y1 fcsz1231_Y1 
+drop racev1x_Y1 racev2x_Y1 raceax_Y1 racebx_Y1 racewx_Y1 hispanx_Y1 hispncat_Y1
+
+rename racethx_Y1 Race_Y1
+
+drop ftstu31x_Y1 ftstu42x_Y1 ftstu53x_Y1 ftstu16x
+drop hibpaged_Y1 bpmldx_Y1 chdaged_Y1 angiaged_Y1 miaged_Y1 ohrtaged_Y1 strkaged_Y1 emphaged_Y1 diabaged_Y1 arthaged_Y1
+drop empst31_Y1 empst42_Y1 empst53_Y1 povcat16 faminc16
+
+drop fsout42_Y1 fslast42_Y1 fsafrd42_Y1 fsskip42_Y1 fsskdy42_Y1 fsless42_Y1 fshgry42_Y1 fswtls42_Y1 fsneat42_Y1 fsnedy42_Y1
+drop fsout42_Y2 fslast42_Y2 fsafrd42_Y2 fsskip42_Y2 fsskdy42_Y2 fsless42_Y2 fshgry42_Y2 fswtls42_Y2 fsneat42_Y2 fsnedy42_Y2
+
+gen Adult=0
+replace Adult=1 if agelast>18
+
+gen COPD=0
+replace COPD=1 if chbron31_Y1==1 | emphdx_Y1==1
+
+save "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_cleaned.dta", replace
+
+*1.6 dropping anyone without information on any covariate included in the model 
+
+drop if hideg_Y1<0
+drop if educyr_Y1<0
+drop if region16<0
+drop if intvlang>4
+drop if arthdx_Y1 <0
+drop if diabdx_Y1 <0
+drop if chbron31_Y1 <0
+drop if emphdx_Y1 <0
+drop if strkdx_Y1 <0
+drop if hibpdx_Y1 <0
+
+save "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_cleaned_v1.dta"
+
+*1.7 Adding back age, medical debt, and disability from MEPS 
+
+use dupersid agelast anylmt16 probpy42 crfmpy42 pyunbl42 if agelast using "\\Client\C$\MEPS\881 Food Insecurity Project\2016MEPS Files\2016 Full Year Consolidated Data File.dta"
+
+save "\\Client\C$\MEPS\881 Food Insecurity Project\2016 MEPS Files\2016 additional vars.dta"
+
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_cleaned_v1.dta"
+
+merge 1:1 dupersid using "\\Client\C$\MEPS\881 Food Insecurity Project\2016 MEPS Files\2016 additional vars.dta"
+
+drop if _merge!=3
+
+merge 1:1 dupersid using "\\Client\C$\MEPS\881 Food Insecurity Project\2016 MEPS Files\2016 disability status.dta"
+
+drop if _merge!=3
+
+drop if probpy42<-6 | crfmpy42<-6 | pyunbl42<-6
+gen MedicalDebt=0
+replace MedicalDebt=1 if probpy42==1 | crfmpy42==1 | pyunbl42==1
+
+replace emphdx_Y1=0 if emphdx_Y1==2
+
+gen HSDegree_Y1=0
+replace HSDegree_Y1=1 if hideg_Y1==3
+replace HSDegree_Y1=2 if hideg_Y1>3
+
+gen HSDegree_Y2=0
+replace HSDegree_Y2=1 if hideg_Y2==3
+replace HSDegree_Y2=2 if hideg_Y2>3
+
+gen povcat16_Y1=0
+replace povcat16_Y1=1 if povlev16_Y1<100
+replace povcat16_Y1=2 if povlev16_Y1>=100 & povlev16_Y1<200
+replace povcat16_Y1=3 if povlev16_Y1>=200
+
+
+save "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V2.dta"
+
+*1.8 collapsing insurance category bins
+
+replace insurc16_Y1=11 if insurc16_Y1==1 | insurc16_Y1==8 | insurc16_Y1==5
+replace insurc16_Y1=12 if insurc16_Y1==4 
+replace insurc16_Y1=13 if insurc16_Y1==6
+replace insurc16_Y1=14 if insurc16_Y1==2
+replace insurc16_Y1=15 if insurc16_Y1==3 | insurc16_Y1==7 
+
+replace insurc16_Y1=1 if insurc16_Y1==11
+replace insurc16_Y1=2 if insurc16_Y1==12
+replace insurc16_Y1=3 if insurc16_Y1==13
+replace insurc16_Y1=4 if insurc16_Y1==14
+replace insurc16_Y1=5 if insurc16_Y1==15
+
+rename insurc16_Y1 insurc16
+
+replace insurc17_Y2=11 if insurc17_Y2==1 | insurc17_Y2==8 | insurc17_Y2==5
+replace insurc17_Y2=12 if insurc17_Y2==4 
+replace insurc17_Y2=13 if insurc17_Y2==6
+replace insurc17_Y2=14 if insurc17_Y2==2
+replace insurc17_Y2=15 if insurc17_Y2==3 | insurc17_Y2==7 
+
+replace insurc17_Y2=1 if insurc17_Y2==11
+replace insurc17_Y2=2 if insurc17_Y2==12
+replace insurc17_Y2=3 if insurc17_Y2==13
+replace insurc17_Y2=4 if insurc17_Y2==14
+replace insurc17_Y2=5 if insurc17_Y2==15
+
+rename insurc17_Y2 insurc17
+
+drop if fswt42_Y1==. | fswt42_Y2==.
+
+gen FoodInsecurityWeight=(fswt42_Y1+fswt42_Y2)/2
+
+save "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V3.dta"
+
+*1.7 merging with longitudinal dataset to get longitudinal weights 
+ 
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V3.dta"
+
+merge 1:1 dupersid using "C:\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 longitudinal weights.dta"
+
+keep if _merge==3
+
+save "C:\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4 (updated).dta"
+
+/*********************************************************************************************
+PART 2: Analysis #1 (effect of 2016 healthcare expenditures on 2017 food insecurity status)
+*********************************************************************************************/
+
+use "C:\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+*2.1 Main Analysis 
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 
+
+svy: logistic FS_Y2 totexp16_K 
+
+*2.2 Secondary Analyses: Redo main analyses using other types of expenditures as the primary independent variable (Main Analysis #1)
+
+
+*2.2.1 - ER
+
+svy: logistic FS_Y2 ertexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16 i.region16 i.insurc16 
+
+*2.2.2 - Outpatient
+
+svy: logistic FS_Y2 optexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 
+
+*2.2.3 - Inpatient
+
+svy: logistic FS_Y2 iptexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16 i.insurc16 
+
+*2.2.4 - Prescription 
+ 
+svy: logistic FS_Y2 rxexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 
+
+*2.2.5 - Out-of-pocket costs
+
+svy: logistic FS_Y2 totslf16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 
+
+*2.3 - Subgroup analyses by medical group 
+
+*2.3.1 - Blood Pressure
+svy, subpop(hibpdx_Y1): logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16
+
+
+*2.3.2 - Stroke
+svy, subpop(strkdx_Y1): logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 
+
+
+*2.3.3 - COPD
+svy, subpop(COPD_Y1): logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16
+
+
+*2.3.5 - Diabetes
+svy, subpop(diabdx_Y1): logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 if diabdx_Y1==1
+
+
+*2.3.6 - Arthritis
+svy, subpop(arthdx_Y1): logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16
+
+*2.4 - Sensitivity Analyses with different model specifications 
+
+*2.4.1 - Adjust for total days spent in the hospital
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 ipngtd16
+
+
+*2.4.2 - Adjust for self-reported medical debt 
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 MedicalDebt
+
+
+*2.4.3 - Adjust for Disability status 
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 i.povcat16  i.region16  i.insurc16 Disability
+
+
+/*******************************************************************************************
+*PART 3: Analysis #2 (effect of 2016 food insecurity status on 2017 healthcare expenditures)
+********************************************************************************************/
+
+use "C:\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+*3.1. Main Analysis
+
+svy: twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+*3.2. Secondary Analyses 
+
+*3.2. Redo main analyses using other types of expenditures as the dependent variable
+
+*3.2.1 - ER
+
+svy: twopm ertexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+
+*3.2.2 - Outpatient
+
+svy: twopm optexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+
+*3.2.3 - Inpatient
+
+svy: twopm iptexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+*3.2.4 - Prescription
+
+svy: twopm rxexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+ 
+*3.2.5 - Out-of-pocket costs 
+
+svy: twopm totslf17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+
+*3.3 Subgroup analyses by medical group 
+
+*3.3.1 - High Blood Pressure 
+
+svy, subpop(hibpdx_Y1): twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+
+*3.3.2 - Stroke 
+
+svy, subpop(strkdx_Y1): twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+*3.3.3 - COPD
+
+svy, subpop(COPD_Y1): twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+
+*3.3.4 - Diabetes 
+
+svy, subpop(diabdx_Y1): twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+*3.3.5 - Arthritis 
+
+svy, subpop(arthdx_Y1): twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+*3.4 - Estimating Predictive Margins 
+
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+sort totexp16
+gen ptile = int(1000*(_n-1)/_N)+1
+mean totexp16 if ptile==975
+
+Mean estimation                   Number of obs   =         11
+
+--------------------------------------------------------------
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+    totexp16 |   39255.27   97.51691      39037.99    39472.55
+--------------------------------------------------------------
+
+
+gen totexp16_ptile975=totexp16
+replace totexp16_ptile975=39255.27 if ptile>=975
+
+*3.4.1. Main Analysis
+
+qui svy: twopm totexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.4.2. Secondary Analyses -- Redo main analyses using other types of expenditures as the dependent variable
+
+*3.4.2.1 - ER
+
+qui svy: twopm ertexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1  i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.4.2.2 - Outpatient
+
+qui svy: twopm optexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.4.2.3 - Inpatient
+
+qui svy: twopm iptexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.4.2.4 - Prescription
+
+qui svy: twopm rxexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.4.2.5 - Out-of-pocket costs 
+
+qui svy: twopm totslf17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+margins, dydx(FS_Y1)
+
+*3.5 Subroup Analyses by Medical Condition  
+
+qui svy: twopm totexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log)) 
+
+
+*3.5.1 - High Blood Pressure 
+margins, dydx(FS_Y1) over(hibpdx_Y1)
+
+
+*3.5.2 - Stroke 
+margins, dydx(FS_Y1) over(strkdx_Y1)
+
+
+*3.5.3 - COPD
+margins, dydx(FS_Y1) over(COPD_Y1)
+
+
+*3.5.4 - Diabetes 
+margins, dydx(FS_Y1) over(diabdx_Y1)
+
+*3.5.5 - Arthritis 
+margins, dydx(FS_Y1) over(arthdx_Y1)
+
+/************************************
+PART 4: Conducting Modified Park Test
+*************************************/
+
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+svy: glm totexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16 i.povcat16 i.HSDegree_Y1, family(gamma) link(log)
+
+predict yhat
+gen lnyhat=ln(yhat)
+
+gen res=totexp17-yhat
+gen r2=((res)^2)
+
+glm r2 lnyhat, link(log) family(gamma) robust nolog
+
+test lnyhat==0
+test lnyhat==1
+test lnyhat==2
+test lnyhat==3
+
+/*************************************************
+PART 5: Comparing Different Winsorizing Strategies
+**************************************************/
+
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+*5.1 - 90th percentile of 2016 expenditures regression: 
+
+gen totexp16_ptile900=totexp16
+replace totexp16_ptile900=12632.07 if ptile>900
+
+svy: mean totexp16 if ptile==900
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =      10        Number of obs   =         11
+Number of PSUs   =      10        Population size =  125,851.2
+                                  Design df       =          0
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+    totexp16 |   12632.07          .             .           .
+--------------------------------------------------------------
+Note: Missing standard error because of stratum with single
+      sampling unit.
+
+ 
+svy: twopm totexp17 i.FS_Y1 totexp16_ptile900 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+	    	  
+*5.2 - 95th percentile of 2016 expenditures regression: 
+
+ svy: mean totexp16 if ptile==950
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       9        Number of obs   =         11
+Number of PSUs   =      10        Population size = 108,953.95
+                                  Design df       =          1
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+    totexp16 |   23353.38          .             .           .
+--------------------------------------------------------------
+Note: Missing standard error because of stratum with single
+      sampling unit.
+
+
+gen totexp16_ptile950=totexp16
+replace totexp16_ptile950=23353.38 if ptile>950 
+
+svy: twopm totexp17 i.FS_Y1 totexp16_ptile950 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+*5.3 - 97.5th percentile of 2016 expenditures regression: 
+
+svy: mean totexp16 if ptile==975
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =      11        Number of obs   =         11
+Number of PSUs   =      11        Population size = 194,843.19
+                                  Design df       =          0
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+    totexp16 |    39097.9          .             .           .
+--------------------------------------------------------------
+Note: Missing standard error because of stratum with single
+      sampling unit.
+
+
+gen totexp16_ptile975=totexp16
+replace totexp16_ptile950=39097.9 if ptile>975 
+
+svy: twopm totexp17 i.FS_Y1 totexp16_ptile975 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+*5.4 - 99th percentile of 2016 expenditures regression: 
+
+svy: mean totexp16 if ptile==990
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =      10        Number of obs   =         10
+Number of PSUs   =      10        Population size = 129,160.84
+                                  Design df       =          0
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+    totexp16 |   60654.11          .             .           .
+--------------------------------------------------------------
+Note: Missing standard error because of stratum with single
+      sampling unit.
+
+gen totexp16_ptile990=totexp16
+replace totexp16_ptile990=60654.11 if ptile>990 
+
+svy: twopm totexp17 i.FS_Y1 totexp16_ptile990 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit) > secondpart(glm, family(gamma) link(log))
+
+/***********************************************
+PART 6: Comparing Different Weighting Strategies 
+************************************************/ 
+
+use "\\Client\C$\MEPS\881 Food Insecurity Project\2016-2017 MEPS Files\2016-2017 Consolidated and Food Security_V4.dta"
+
+
+*6.1 Results using Average of Panel Weights 
+
+gen PanelWeight=(perwt17f+perwt16f)/2
+
+svyset [pweight=PanelWeight], strata(varstr) psu(varpsu)
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 povlev16  i.region16  i.insurc16_Y1 
+
+svy: twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit)> secondpart(glm, family(gamma) link(log))
+
+
+*6.2 Results using Longitudinal Weights 
+
+svyset [pweight=longwt], strata(varstr) psu(varpsu)
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 povlev16  i.region16  i.insurc16_Y1 
+
+svy: twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit)> secondpart(glm, family(gamma) link(log))
+
+
+*6.3 Results using Food Insecurity Weights
+
+gen FoodSecurityWt= (fswt42_Y2+ fswt42_Y1)/2
+svyset [pweight=FoodSecurityWt], strata(varstr) psu(varpsu)
+
+svy: logistic FS_Y2 totexp16_K FS_Y1 agelast_Y1 i.Sex i.Race_Y1 i.HSDegree_Y1 povlev16  i.region16  i.insurc16_Y1 
+
+svy: twopm totexp17 i.FS_Y1 totexp16 i.region16 agelast_Y1 i.Sex i.Race_Y1 i.insurc16_Y1 povlev16 i.HSDegree_Y1 , firstpart(logit)> secondpart(glm, family(gamma) link(log))
